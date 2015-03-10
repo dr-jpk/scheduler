@@ -1,0 +1,27 @@
+Queue.py - Queue class
+SubBlock.py - SubBlock class
+scheduler.cgi - Web python cgi script (hosted in Sutherland)
+scheduler_noncgi.py - command line version
+
+Software notes:
+-scheduler.cgi has python pointing to the install on web.salt.saao.ac.za
+-scheduler_noncgi.py has python pointing to /opt/local/bin/python2.7 (as on my desktop machine in the office)
+-sdb.saao is to be used for any of this software run from Cape Town. If in Sutherland, sdb.salt
+-Passwords are omitted from the files.
+-It's also possible to get scheduler.cgi running on a local webserver. In which case also make sure sdb.saao is used.
+
+Python Dependencies:
+
+cgi
+cgitb
+matplotlib
+ephem - http://rhodesmill.org/pyephem/
+cStringIO
+numpy
+datetime
+MySQLdb
+bisect
+Qt4Agg backend for matplotlib (used on MacOSX)
+
+
+A TODO list will be added to the github repo.

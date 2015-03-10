@@ -1,0 +1,8 @@
+#backend : TkAgg 
+backend :Qt4Agg 
+keymap.quit : q
+keymap.zoom : o
+#axes.labelsize : 20
+axes.linewidth : 2.0
+#axes.labelweight : medium
+#font.size : 25

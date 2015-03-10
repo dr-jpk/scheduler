@@ -1,0 +1,97 @@
+SCHEDULER CHEATSHEET
+
+Note: All times are in SAST.
+
+INPUT FIELDS
+
+Date: The night you want to create the schedule for with YYYY/MM/DD format.
+
+Propcode: Can be used to specify a specific proposal code. The default 2014-2 selects current semester. Note also that all active MLT proposals are included by default (they can have different semester prefixes)
+
+PI: Specify a specific PI. This is used more for debugging purposes.
+
+BlockID: If you want to show only one specific block, put in the numerical block id here. This is used more for debugging purposes.
+
+Seeing: Specify min and max limits here.
+
+MinMoonDist: Blocks with targets closer to the moon than this amount (in degrees) will not be shown. Note I do not yet handle (e.g. sidereal) proposals with dummy targets that have ra,dec=0,0 properly - always best to check the OPT time critical tab.
+
+Niter: A parameter that affects number of randomisations done by the current algorithm. The default is good for most cases - it is mostly here for experimentation.
+
+Transparency: Only include those blocks in each transparency category. 
+ 
+Pri Treatment: Choose one of two ways to optimise the queue. The current options are to try and optimise all priorities together (Together) or sequentially (Sequential). Together is quicker but includes results in more lower priority blocks in the final solution. Sequential tries to optimise P0,P1 together, then P1,P2, then P2,P3, then P3,P4 and tends to give results with less lower priority blocks. The current algorithm is reasonably good but more thought is needed into how to optimise the queue better for several priorities at the same time (see below for more info). 
+
+P0 P1 P2 P3 P4: Checkboxes to determine whether to include each priority or not. P4 is unchecked by default (it usually adds an unnecessary overhead).
+RSS SCAM HRS BVIT: Similarly, for the different instruments.
+
+Use alternate start time: Specify a new start time during the night to rerun the queue (instead of the default evening twilight). The default for this field is the current time.
+
+Use alternate end time: Ridge cloud is coming! Be prepared! Works similar to alternate start time.
+
+Ignore TimeCritical Moon: Ignore moon considerations for time critical blocks.    
+2014-2 (used to roughly select semester)
+
+------------------------------------------
+
+THE CURRENT OPTIMISATION ALGORITHM (work in progress)
+
+We repeatedly choose a reference block at random from the list of available blocks that can be scheduled that night.
+
+If that block isn’t active (in the queue), we try and activate it.
+If it can’t be activated (due to a conflict with another block), then we randomise its start time and leave it inactive (it may be activated at a later stage, however). 
+
+Then for that reference block, we repeatedly choose other random blocks.
+If it isn’t active, we then try to activate it. If that doesn’t work and the new block has a higher score than the reference block, we deactivate the reference block and activate the new block instead (improving the queue score). If on the other hand the block is already active, we try to randomise its start time. This is not always possible, since changing the start time could make it overlap with other blocks. If it cannot be reactivated after the randomisation, the original start time of the block is restored and the block is activated.
+
+The initial weighting scheme/score for blocks is as follows:
+
+   def CalcEnergy(self):
+      exp = 0.0
+      base = 2.0
+      if(self.priority == 0):
+         exp = 10.0
+      elif(self.priority == 1):
+         exp = 8.0
+      elif(self.priority == 2):
+         exp = 7.0
+      elif(self.priority == 3):
+         exp = 6.0
+      elif(self.priority == 4):
+         exp = 3.0
+      if(self.istimecritical):
+         exp = exp + 1.0
+      self.energy = math.pow(base,exp)
+
+Detailed simulations are required to test the performance of this scheme and any others that introduce several more factors.
+---------------------------------------------------
+
+THE QUEUE DISPLAY
+Title: Date, night duration (twilight based) and moon illumination fraction.
+
+Yellow (bright), Grey (grey) and Black (dark) vertical lines: Mark buffer start times 25, 20, 15 min before evening twilight (includes acquisition for blocks) and 5, 10, 15 min after morning twilight 
+
+Red dashed vertical lines: Evening and morning twilight times
+
+Blocks depiction: Each row contains blocks in the order (top to bottom) P0 (black) , P1 (red), P2 (green), P3 (blue) and P4 (cyan). The small strips at the top of each block indicate the PIPT moon type (not adjusted due to alternative specified max lunar fraction) as follows: white (any), grey (grey), yellow (bright) and black (dark). In addition, time critical blocks have a magenta stripe. The solid coloured part (main body) of each block indicates the time duration when it should be observed (specified in the queue table). The fainter coloured part is the duration of the block point window - these will overlap each other if there are several consequent blocks of the same priority.
+
+
+----------------------------------------------
+
+THE QUEUE TABLE
+
+The information provided is not exhaustive. If there are things you want to see here, let me know.
+
+This is similar to info displayed e.g. by the HA tool.
+OT = Obstime, MP = Moon Phase (min - max).
+
+Above the table is a total for the score for the queue for the night.
+The number of blocks scheduled out of number of blocks available is given broken down by priority.
+
+The list is sorted by Start and End times - the Start time should be when the telescope is pointed to that target.
+
+The Gap column calculates the time gap between the blocks in seconds.
+
+The BPW1 and BPW2 columns give the modified block point windows (taking into consideration moon, night boundaries, time critical windows, etc).
+
+
