@@ -19,7 +19,7 @@ class Queue(object):
       #self.sqlhost = 'sdb.salt'
       self.sqlhost = db
       self.sqlpasswd='yourpasswordhere'
-      self.debug = 1
+      self.debug = debug
       self.smin = seeing_range[0]
       self.smax = seeing_range[1]
       self.priorities = priority_list
