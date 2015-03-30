@@ -6,6 +6,7 @@ scheduler_noncgi.py - command line version
 Software notes:
 -scheduler.cgi has python pointing to the install on web.salt.saao.ac.za
 -scheduler_noncgi.py has python pointing to /opt/local/bin/python2.7 (as on my desktop machine in the office)
+-semester.py - wrapper to run a semester simulation. Rather simple at the moment. A few functions have been added to the classes to help interoperability with the database - the new tables are defined in the file schema.txt.
 -sdb.saao is to be used for any of this software run from Cape Town. If in Sutherland, sdb.salt
 -Passwords are omitted from the files.
 -It's also possible to get scheduler.cgi running on a local webserver. In which case also make sure sdb.saao is used.

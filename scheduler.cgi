@@ -247,10 +247,11 @@ if(cgi_hrs):
 if(cgi_bvit):
    instrument_list.append("BVIT")
 
-db = "sdb.salt"
+sqlhost = "sdb.salt"
+sqldb = "sdb"
 debug = 0
 #create an instance of the Queue class
-q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,db,debug)
+q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,sqlhost,sqldb,debug)
 #get the twilight start and end times (read from NightInfo in the science database within the Queue class)
 (dstart,dend) = q.GetTwilightTimes()
 #get the night duration in hours

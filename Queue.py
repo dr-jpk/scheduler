@@ -13,13 +13,17 @@ import matplotlib.dates as md
 from datetime import datetime, timedelta
 
 class Queue(object):
-   def __init__(self,inputdate,priority_list,seeing_range,usealttime,alttime,usealtendtime,altendtime,instrument_list,transparency,notcmoon,propcode,piname,blkid,moondist,db,debug):
+   def __init__(self,inputdate,priority_list,seeing_range,usealttime,alttime,usealtendtime,altendtime,instrument_list,transparency,notcmoon,propcode,piname,blkid,moondist,host,db,debug):
       self.sqluser = 'brent'
+      #self.sqldb = 'sdb_brent'
       self.sqldb = 'sdb'
-      #self.sqlhost = 'sdb.salt'
-      self.sqlhost = db
+      self.sqldb = db
+      self.sqlhost = host
       self.sqlpasswd='yourpasswordhere'
-      self.debug = debug
+      #some internal options
+      self.debug = debug 
+      self.ignorebuffers = 1
+
       self.smin = seeing_range[0]
       self.smax = seeing_range[1]
       self.priorities = priority_list
@@ -104,7 +108,12 @@ class Queue(object):
       #otherwise, make a new query
       con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
       cur = con.cursor()
-      qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and ProposalStatus_Id=1 and OnHold=0 and b.NVisits != b.NDone"
+      #for semester simulations...
+      #Need to keep NVisits != NDone 
+      #Not sure what Current is doing ????
+      qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and (ProposalStatus_Id=1 or ProposalStatus_Id=4) and OnHold=0 and b.NVisits != b.NDone"
+      #for scheduling a night
+      #qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and ProposalStatus_Id=1 and OnHold=0 and b.NVisits != b.NDone"
       
       NPRI = len(self.priorities)
       if(NPRI >= 1):
@@ -128,7 +137,8 @@ class Queue(object):
 		   qtxt+="and (b.Transparency_Id=\'5\' or b.Transparency_Id=\'1\')";
          
       if(len(self.pcode) >= 1):
-         qtxt+=" and (pc.Proposal_Code regexp\'%s\' or pc.Proposal_Code regexp\'MLT\')" % self.pcode
+         qtxt+=" and (pc.Proposal_Code regexp\'%s\')" % self.pcode
+         #qtxt+=" and (pc.Proposal_Code regexp\'%s\' or pc.Proposal_Code regexp\'MLT\')" % self.pcode
       if(len(self.pi) >= 1):
          qtxt+=" and ir.Surname=\'%s\'" % self.pi
       if(len(self.blockid) >= 1):
@@ -199,6 +209,14 @@ class Queue(object):
          tf10=self.dend
          tf15=self.dend
 
+      if(self.ignorebuffers):
+         ti5 = self.dstart
+         ti10 = self.dstart
+         ti15 = self.dstart
+         tf5 = self.dend
+         tf10 = self.dend
+         tf15 = self.dend
+
       
       results = cur.fetchall()
       cur.close()
@@ -235,7 +253,7 @@ class Queue(object):
             #TODO: Add NVisits, NDone, WaitDays, LastObs, POOLS
             #(and also add in user filters - min seeing, transparency, etc, as preferences/command line args?)
             
-            b = SubBlock(ra_deg,dec_deg,int(data[BlockID]),wstart[w],wend[w],int(data[ObsTime]),str(data[PiName]),str(data[PropCode]),str(data[TargetName]),int(data[Priority]),float(data[MaxSeeing]),int(data[MoonID]),float(data[MaxLunarPhase]),int(data[Transparency]),float(data[MinLunarDist]),int(data[PiRank]),self.ignoretcmoon)
+            b = SubBlock(ra_deg,dec_deg,int(data[BlockID]),wstart[w],wend[w],int(data[ObsTime]),str(data[PiName]),str(data[PropCode]),str(data[TargetName]),int(data[Priority]),float(data[MaxSeeing]),int(data[MoonID]),float(data[MaxLunarPhase]),int(data[Transparency]),float(data[MinLunarDist]),int(data[PiRank]),self.ignoretcmoon,int(data[NDone]),int(data[NVisits]))
             #b = SubBlock(ra_deg,dec_deg,int(data[BlockID]),wstart[w],wend[w],int(data[ObsTime]),str(data[PiName]),str(data[PropCode]),str(data[TargetName]),int(data[Priority]),float(data[MaxSeeing]),int(data[MoonID]),float(data[MaxLunarPhase]),int(data[Transparency]),float(data[MinLunarDist]),int(data[PiRank]),self.inputdate)
 
             #calculate stuff unrelated to time windows...
@@ -265,7 +283,8 @@ class Queue(object):
             
             # and b.IsSlitmaskLoaded() 
             #Hrm, HasBPW() should probably not be here...have to work on support for non-sidereal targets?
-            if(b.HasBPW() and b.TrackOverlaps(ti,tf) and b.IsTwilightOK() and b.IsMoonOK(self.minlunardist) and b.IsTimeCriticalOK() and (b.InstrumentInfo() in self.instruments)):
+            if(b.TrackOverlaps(ti,tf) and b.IsTwilightOK() and b.IsMoonOK(self.minlunardist) and b.IsTimeCriticalOK()):# and (b.InstrumentInfo() in self.instruments)):
+            #if(b.HasBPW() and b.TrackOverlaps(ti,tf) and b.IsTwilightOK() and b.IsMoonOK(self.minlunardist) and b.IsTimeCriticalOK() and (b.InstrumentInfo() in self.instruments)):
                self.blist.append(b)
 
       con.close()
@@ -274,10 +293,8 @@ class Queue(object):
          #This is where we could work out lists of blockids of blocks that overlap with each block
          #self.CalculateOverlaps()
 
-
-
    def DeactivateBlocks(self):
-      for j in filter(lambda x: x.IsActive(),self.blist):
+      for j in filter(lambda x: x.IsActive() == 1,self.blist):
          j.SetActive(0)
 #Not currently used
    def CheckOverlaps(self):
@@ -318,7 +335,7 @@ class Queue(object):
 
    def PrintActiveHTML(self):
       #might consider operator.attrgetter for the sorting of larger lists (overlap lists maybe?)
-      plist = sorted(filter(lambda x: x.IsActive(),self.blist),key=lambda y: y.GetChosenEnd())
+      plist = sorted(filter(lambda x: x.IsActive() == 1,self.blist),key=lambda y: y.GetChosenEnd())
       #plist = sorted(filter(lambda x: x.IsActive(),self.blist),key=lambda y: y.GetChosenStart())
       NP = len(plist)
 #     print "<p>General info:"
@@ -507,7 +524,7 @@ class Queue(object):
       return 1
    def TotalEnergy(self):
       E=0.0
-      for j in filter(lambda x: x.IsActive(),self.blist):
+      for j in filter(lambda x: x.IsActive() == 1,self.blist):
          E+=j.Energy()
       return E
 #Part of the implementation for weighted interval scheduling method
@@ -589,6 +606,91 @@ class Queue(object):
       for block in O:
          block.SetActive(1)
 
+   def MimicSA(self):
+      #An interesting twist on this function would be to use 
+      #sorted(plist, key=lambda x: x.GetObsTime())
+      #and always choose the shortest blocks first 
+      #(though this might have implications later in the semester with large gaps, making it difficult to fill gaps
+      #since all the smaller blocks are finished)
+
+      #N.B. An important thing to recognise with this algorithm is that 
+      #the knock-on effects of choosing an early block that may later
+      #bump into a high priority block are quite pronounced compared to the
+      #RandomiseBlocks approach
+      #One can substitute GetPri() here for another function, e.g. GetScore()
+      #to use alternative weighting schemes (see also SubBlock.Energy())
+      if(self.debug):
+         print "MimicSA"
+      scores = { }
+      plist = self.blist
+      NP = len(plist)
+      for i in range(0,NP):
+         if(not scores.has_key(plist[i].GetPri())):
+            scores[plist[i].GetPri()] = plist[i].GetPri()
+            if(self.debug):
+               print "%d score added" % plist[i].GetPri()
+      scorelist = scores.keys()
+      scorelist.sort()
+      NS = len(scorelist)
+      if(self.debug):
+         for i in range(0,NS):
+            print "score %d = %d" % (i,scorelist[i])
+
+
+      #loop has to be driven by time - if we find no blocks available in our overlap region,
+      #then increment time by 5 min (?) and try again through all priorities
+      clock = self.dstart 
+      while (clock < self.dend):
+         #go through each priority level, starting with the highest one (P0)
+         gotone = 0
+         for s in range(0,NS):
+            if(gotone == 0):
+               plist = filter(lambda x: x.GetPri() == scorelist[s] and x.IsActive() == 0,self.blist)
+               NP = len(plist)
+                  #choose a random index to start with
+               if(NP>1):
+                  idx = random.randint(0,NP-1)
+                  if(plist[idx].OverlapsWindow(clock)):
+                     plist[idx].SetChosenStart(clock)
+                     if(self.IsInsertable(plist[idx]) and plist[idx].IsActive()==0):
+                        plist[idx].SetActive(1)
+                        clock = plist[idx].GetChosenEnd()
+                        gotone = 1
+                        break
+                     else:
+                        plist[idx].SetDefaultStart()
+               else:
+                  idx = 0
+
+               #look at next entry in array if the random idx didn't work
+               newidx = idx+1
+               while(newidx < NP and gotone == 0):
+                  if(plist[newidx].OverlapsWindow(clock)):
+                     plist[newidx].SetChosenStart(clock)
+                     if(self.IsInsertable(plist[newidx]) and plist[newidx].IsActive()==0):
+                        plist[newidx].SetActive(1)
+                        clock = plist[newidx].GetChosenEnd()
+                        gotone = 1
+                        break
+                     else:
+                        plist[newidx].SetDefaultStart()
+                  newidx = newidx+1
+               #to cover objects earlier in array than the one we chose at random
+               newidx = 0
+               while(newidx < idx and gotone == 0):
+                  if(plist[newidx].OverlapsWindow(clock)):
+                     plist[newidx].SetChosenStart(clock)
+                     if(self.IsInsertable(plist[newidx]) and plist[newidx].IsActive()==0):
+                        plist[newidx].SetActive(1)
+                        clock = plist[newidx].GetChosenEnd()
+                        gotone = 1
+                        break
+                     else:
+                        plist[newidx].SetDefaultStart()
+                  newidx = newidx+1
+         #minutes = 1 for finest granularity
+         clock = clock+timedelta(minutes=1)
+
    def RandomiseBlocks(self,iter,inc_all,pfirst,psecond):
       #for j in filter(lambda x: x.IsActive(),self.blist):
       #   j.Randomise()
@@ -614,7 +716,7 @@ class Queue(object):
                #if we can't insert it, randomise its start time in case
                #the next time it's considered, it may be insertable at a different time
                E1=plist[idx1].Energy()
-               if(not plist[idx1].IsActive()):
+               if(plist[idx1].IsActive() == 0):
                   if(self.IsInsertable(plist[idx1])):
                      plist[idx1].SetActive(1)
                   else:
@@ -631,10 +733,10 @@ class Queue(object):
                      #(iii)otherwise, randomise the start time and leave as inactive
                      #we also need a way to randomise blocks that are active
                      #the swapping takes care of deactivating lower pri blocks
-                     if(not plist[idx2].IsActive()):
+                     if(plist[idx2].IsActive() == 0):
                         if(self.IsInsertable(plist[idx2])):
                            plist[idx2].SetActive(1)
-                        elif(plist[idx1].IsActive() and E2 >= E1):
+                        elif(plist[idx1].IsActive() == 1 and E2 >= E1):
                            plist[idx1].SetActive(0)
                            if(self.IsInsertable(plist[idx2])):
                               plist[idx2].SetActive(1)
@@ -676,7 +778,7 @@ class Queue(object):
         #print "Try %d/%d" % (j,Ntries)
          for i in range(0,NP):
             WasActive=0
-            if(plist[i].IsActive()):
+            if(plist[i].IsActive() == 1):
                WasActive=1
                plist[i].SetActive(0)
             #for j in range(0,Ntries):
@@ -687,7 +789,7 @@ class Queue(object):
             #   plist[i].SetActive(1)
             
    def CountActiveObsTimeByInstrument(self,inst):
-      plist = filter(lambda x: x.IsActive() and x.InstrumentInfo() == inst,self.blist)
+      plist = filter(lambda x: x.IsActive() == 1 and x.InstrumentInfo() == inst,self.blist)
       NP = len(plist)
       sum = 0
       for i in range(0,NP):
@@ -696,7 +798,7 @@ class Queue(object):
 
 
    def CountActiveObsTime(self):
-      plist = filter(lambda x: x.IsActive(),self.blist)
+      plist = filter(lambda x: x.IsActive() == 1,self.blist)
       NP = len(plist)
       sum = 0
       for i in range(0,NP):
@@ -704,11 +806,11 @@ class Queue(object):
       return sum
 
    def CountActiveBlocks(self,priority):
-      plist = filter(lambda x: x.IsActive() and x.GetPri() == priority,self.blist)
+      plist = filter(lambda x: x.IsActive() == 1 and x.GetPri() == priority,self.blist)
       return len(plist)
    def CountInActiveBlocks(self,priority):
       #Doesn't work for P0 - very weird!
-      plist2 = filter(lambda x: not x.IsActive() and x.GetPri() == priority,self.blist)
+      plist2 = filter(lambda x: x.IsActive() == 0 and x.GetPri() == priority,self.blist)
       return len(plist2)
 
 #Active*Blocks* functions are used for debugging (mostly for the plot)
@@ -732,7 +834,7 @@ class Queue(object):
       plist[random.randint(0,NP-1)].SetActive(1)
       for i in range(0,NP):
          IsOverlapping = 0
-         for j in filter(lambda x: x.IsActive(),plist):
+         for j in filter(lambda x: x.IsActive() == 1,plist):
             if(i!=j and plist[i].GetPri() == priority):
                (t1,t2) = j.GetChosenTimes()
                if(plist[i].IsBlockOverlapping(t1,t2)):
@@ -743,8 +845,58 @@ class Queue(object):
   #def ListActiveBlocks(self):
   #   for j in filter(lambda x: x.IsActive(),self.blist):
   #      print "%s %s P%s %s" % (j.GetPropCode(),j.GetID(),j.GetPri(),j.GetPI())
+   def UpdateNightTracker(self):
+      con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
+      cur = con.cursor()
+
+      dstr = self.dstart.strftime("%Y-%m-%d")# +" 23:59:00"
+      sums = [0.0,0.0,0.0,0.0,0.0]
+      idle = 0.0
+      Weather = 0.0
+      WeatherSeeing = 0.0
+      WeatherCloud = 0.0
+      WeatherHumidity = 0.0
+      Eng=0.0
+      Tech=0.0
+      for pri in range(0,5):
+         plist = filter(lambda x: x.IsActive() == 1 and x.GetPri() == pri,self.blist)
+         NP = len(plist)
+         for j in range(0,NP):
+            sums[pri] = sums[pri] + plist[j].GetObsTime()
+         sums[pri] = sums[pri]/3600 #get the total in decimal hours
+      idle = self.total_duration-(sums[0]+sums[1]+sums[2]+sums[3]+sums[4])
+
+      qtxt = "insert into NightTracker (Night,Seeing,dstart,dend,P0,P1,P2,P3,P4,idle,duration,Weather,WeatherSeeing,WeatherCloud,WeatherHumidity,Eng,Tech) VALUES (\'%s\',%.2f,\'%s\',\'%s\',%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f)" % (dstr,self.smin,self.dstart.strftime("%Y-%m-%d %H:%M:%S"),self.dend.strftime("%Y-%m-%d %H:%M:%S"),sums[0],sums[1],sums[2],sums[3],sums[4],idle,self.total_duration,Weather,WeatherSeeing,WeatherCloud,WeatherHumidity,Eng,Tech)
+      print qtxt
+      cur.execute(qtxt)
+      cur.close()
+      con.commit()
+      con.close()
+
+   def UpdateBlockTracker(self):
+      con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
+      cur = con.cursor()
+      for j in filter(lambda x: x.IsActive() == 1,self.blist):
+         (b1,b2) = j.GetChosenTimes()
+         err = 0 #zero = accepted for now...(this is where we can reject blocks etc based weather, eng, etc, specified by different values)
+         qtxt = "insert into BlockTracker (Block_Id,bstart,bend,err,Priority,ObsTime) VALUES (%d,\'%s\',\'%s\',%d,%d,%d)" % (j.GetID(),b1.strftime("%Y-%m-%d %H:%M:%S"),b2.strftime("%Y-%m-%d %H:%M:%S"),err,j.GetPri(),j.GetObsTime())
+         print qtxt
+         cur.execute(qtxt)
+      cur.close()
+      con.commit()
+      con.close()
+   def MarkActiveAsObserved(self):
+      con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
+      cur = con.cursor()
+      for j in filter(lambda x: x.IsActive() == 1,self.blist):
+         qtxt = "update Block set NDone=\'%d\' where Block_Id=\'%d\'" % (j.GetNDone()+1,j.GetID())
+         print qtxt
+         cur.execute(qtxt)
+      cur.close()
+      con.commit()
+      con.close()
    def DisplayActiveBlocks(self,ax1,ax2,ax3,yrange):
-      for j in filter(lambda x: x.IsActive(),self.blist):
+      for j in filter(lambda x: x.IsActive() == 1,self.blist):
          for rpatch in j.GetRects(self.SHOW_FULL):
             ax1.add_patch(rpatch)
          for rpatch in j.GetRects(self.SHOW_FULL):

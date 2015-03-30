@@ -61,8 +61,8 @@ now = datetime.utcnow()+timedelta(hours=2)
 if(now.hour >= 0 and now.hour <= 10):
     now = now-timedelta(days=1)
 cgi_date = now.strftime("%Y/%m/%d")
-if(len(sys.argv[1])>0):
-   cgi_date = sys.argv[1]
+#if(len(sys.argv[1])>0):
+#   cgi_date = sys.argv[1]
 cgi_alttime = now.strftime("%H:%M")
 cgi_usealttime = 0
 cgi_altendtime = now.strftime("%H:%M")
@@ -100,10 +100,11 @@ if(cgi_bvit):
    instrument_list.append("BVIT")
 
 
-db = "sdb.saao"
+sqlhost= "sdb.saao"
+sqldb = "sdb"
 debug = 1
 
-q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,db,debug)
+q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,sqlhost,sqldb,debug)
 (dstart,dend) = q.GetTwilightTimes()
 total_duration = q.GetDuration()
 duration_str="%.2f h" % (total_duration)
@@ -205,16 +206,18 @@ if(mstart != 'NULL' and mend != 'NULL'):
    ax2.add_patch(Rectangle((mstart,yrange[0]),mduration,yrange[1]*1.5,color='yellow',picker=False,alpha=moon_alpha))
    ax3.add_patch(Rectangle((mstart,yrange[0]),mduration,yrange[1]*1.5,color='yellow',picker=False,alpha=moon_alpha))
 
-cgi_niter = 15
-if(cgi_p0 and cgi_p1):
-   q.RandomiseBlocks(cgi_niter,False,0,1)
-if(cgi_p1 and cgi_p2):
-   q.RandomiseBlocks(cgi_niter,False,1,2)
-if(cgi_p2 and cgi_p3):
-   q.RandomiseBlocks(cgi_niter,False,2,3)
-if(cgi_p3 and cgi_p4):
-   q.RandomiseBlocks(cgi_niter,False,3,4)
+#cgi_niter = 15
+#if(cgi_p0 and cgi_p1):
+#   q.RandomiseBlocks(cgi_niter,False,0,1)
+#if(cgi_p1 and cgi_p2):
+#   q.RandomiseBlocks(cgi_niter,False,1,2)
+#if(cgi_p2 and cgi_p3):
+#   q.RandomiseBlocks(cgi_niter,False,2,3)
+#if(cgi_p3 and cgi_p4):
+#   q.RandomiseBlocks(cgi_niter,False,3,4)
 
+q.MimicSA()
+print q.CountInActiveBlocks(0)
 q.DisplayActiveBlocks(ax1,ax2,ax3,yrange)
 
 plt.show()

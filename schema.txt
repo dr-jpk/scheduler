@@ -1,0 +1,32 @@
+#This is a first rough draft just to get things going
+
+#BlockTracker
+CREATE TABLE BlockTracker (
+Block_Id int(10) unsigned,
+bstart datetime,
+bend datetime,
+err int(10) unsigned, 
+Priority int(10) unsigned,
+ObsTime int(10) unsigned
+);
+
+#NightTracker
+CREATE TABLE NightTracker(
+Night datetime, 
+Seeing float unsigned,
+dstart datetime,
+dend datetime,
+P0 float unsigned,
+P1 float unsigned,
+P2 float unsigned,
+P3 float unsigned,
+P4 float unsigned,
+idle float unsigned,
+duration float unsigned,
+Weather float unsigned,
+WeatherSeeing float unsigned,
+WeatherCloud float unsigned,
+WeatherHumidity float unsigned,
+Eng float unsigned,
+Tech float unsigned
+);

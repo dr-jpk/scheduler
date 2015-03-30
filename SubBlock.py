@@ -10,7 +10,7 @@ import re
 #Class definition
 class SubBlock:
    #Constructor
-   def __init__(self,ra,dec,blockid,WindowStart,WindowEnd,obstime,piname,propcode,targetname,priority,maxseeing,moonid,maxlunar,transparency,minlunardist,pirank,ignoretcmoon):
+   def __init__(self,ra,dec,blockid,WindowStart,WindowEnd,obstime,piname,propcode,targetname,priority,maxseeing,moonid,maxlunar,transparency,minlunardist,pirank,ignoretcmoon,ndone,nvisits):
       self.ra = ra
       self.dec = dec
       self.blockid = blockid
@@ -57,9 +57,10 @@ class SubBlock:
       #Is the block a target of opportunity (ToO) 
       self.istoo =0
       #Store visit information. This is simple at the moment but will need to be expanded later
-      self.nvisits = 0
-      self.ndone = 0
+      self.nvisits = nvisits
+      self.ndone = ndone
       self.waitdays = 0
+      #self.lastobs...
  
       #A flag to keep track of whether block point window information is available
       #Non-sidereal blocks will not have block point windows
@@ -173,13 +174,14 @@ class SubBlock:
    def TrackOverlaps(self,ti,tf):
      #Not sure if the following N.B. is still valid (?)
      #N.B. we have to have self.dW2+self.obstime here, since self.dW2 is now modified to be the bpw.
-     return (self.dW2 >= ti and self.dW1 <= tf)#(max(self.dW1,ti) <= min(self.dW2+timedelta(seconds=self.obstime),tf))
+     return (self.dW2 - ti >= timedelta(seconds=0) and tf-self.dW1 >= timedelta(seconds=0))
+     #return (self.dW2 >= ti and self.dW1 <= tf)
 
    def SetActive(self,flag):
       self.isactive=flag
    def SetDefaultStart(self):
       self.offset = 0
-      self.b1=self.MinStartTime
+      self.b1=self.dW1
       self.b2=self.b1+timedelta(seconds=self.obstime) 
    def Randomise(self):
       #print "Randomise"
@@ -338,6 +340,8 @@ class SubBlock:
       return self.timewindowactive
    def GetID(self):
       return self.blockid
+   def GetNDone(self):
+      return self.ndone
    #These overlap functions are not currently used...
    def AddTWOverlaps(self,overlaps):
       self.overlaps = overlaps
@@ -370,6 +374,7 @@ class SubBlock:
       if(self.istimecritical):
          exp = exp + 1.0
       self.energy = math.pow(base,exp)
+
    def GetPropCode(self):   
       return self.propcode
    def GetMoonMinMax(self):
@@ -466,8 +471,6 @@ class SubBlock:
             if(max(pstart,self.dW1) <= min(pend,self.dW2)):
                self.dW1 = max(pstart,self.dW1)
                self.dW2 = min(pend,self.dW2)
-               self.bpw1 = self.dW1
-               self.bpw2 = self.dW2
                break
 
       cur.close()
@@ -660,8 +663,17 @@ class SubBlock:
       return self.bpw
    def GetBPW(self):
       #returns BlockPointWindow
-      if(self.bpw):
+      if(self.bpw == 1):
          return (self.bpw1,self.bpw2)
+   def OverlapsWindow(self,tw):
+      #if(tw is not None and self.dW1 is not None and self.dW2 is not None):
+      if(tw-self.dW1 >= timedelta(seconds=0) and self.dW2 - tw >= timedelta(seconds=0)):
+         return True
+      else:
+         return False
+      #return(self.dW1 >= tw and tw <= self.dW2)
+      #else:
+      #   return 0
    def GetWindowTimes(self):
       return (self.dW1,self.dW2)
    def GetStrictWindowTimes(self):
