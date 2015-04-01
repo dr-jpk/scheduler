@@ -13,15 +13,20 @@ import matplotlib.dates as md
 from datetime import datetime, timedelta
 
 class Queue(object):
-   def __init__(self,inputdate,priority_list,seeing_range,usealttime,alttime,usealtendtime,altendtime,instrument_list,transparency,notcmoon,propcode,piname,blkid,moondist,host,db,debug):
-      self.sqluser = 'brent'
+   def __init__(self,
+                inputdate, query_date, priority_list,seeing_range,usealttime,alttime,
+                usealtendtime,altendtime,instrument_list,transparency,
+                notcmoon,propcode,piname,blkid,moondist,host,db,debug):
+
+      self.query_date = query_date
+      self.sqluser = 'dummy'
       #self.sqldb = 'sdb_brent'
-      self.sqldb = 'sdb'
+#      self.sqldb = 'sdb'
       self.sqldb = db
       self.sqlhost = host
-      self.sqlpasswd='yourpasswordhere'
+      self.sqlpasswd='dummy'
       #some internal options
-      self.debug = debug 
+      self.debug = debug
       self.ignorebuffers = 1
 
       self.smin = seeing_range[0]
@@ -48,7 +53,7 @@ class Queue(object):
       self.DateTimeSetup(inputdate)
       self.LoadBlocks() #could pass on constraints here...?
       self.SHOW_FULL = 1
-      
+
    def RetrieveNightInfo(self,inputdate):
       con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
       cur = con.cursor()
@@ -73,7 +78,7 @@ class Queue(object):
       results = cur.fetchall()
       for data in results:
          self.loadedrssfilters[str(data[0])] = str(data[0])
-      
+
       #print self.loadedrssfilters.keys()
 
       cur.close()
@@ -88,7 +93,7 @@ class Queue(object):
       results = cur.fetchall()
       for data in results:
          self.loadedmosmasks[str(data[0])] = str(data[0])
-      
+
       #print self.loadedmosmasks.keys()
 
       cur.close()
@@ -99,8 +104,8 @@ class Queue(object):
       #Night duration in hours + decimals for minutes
       return (self.total_duration)
    def LoadBlocks(self):
-      #default state - Load all blocks into a list and have none as active 
-      #only add blocks that are *visible* tonight [and for time critical blocks, that have at least one time critical window overlapping with self.dstart...self.dend 
+      #default state - Load all blocks into a list and have none as active
+      #only add blocks that are *visible* tonight [and for time critical blocks, that have at least one time critical window overlapping with self.dstart...self.dend
 
       #try and load query data from file if already done....
       #TODO...
@@ -109,12 +114,12 @@ class Queue(object):
       con = MySQLdb.connect(user=self.sqluser,db=self.sqldb,host=self.sqlhost,passwd=self.sqlpasswd)
       cur = con.cursor()
       #for semester simulations...
-      #Need to keep NVisits != NDone 
+      #Need to keep NVisits != NDone
       #Not sure what Current is doing ????
-      qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and (ProposalStatus_Id=1 or ProposalStatus_Id=4) and OnHold=0 and b.NVisits != b.NDone"
+      qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance, get_w_Tot_score_Date(b.Block_Id, %s) from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and (ProposalStatus_Id=1 or ProposalStatus_Id=4) and OnHold=0 and b.NVisits != b.NDone" %self.query_date
       #for scheduling a night
       #qtxt = "SELECT DISTINCT b.Block_Id,tc.RaH,tc.RaM,tc.RaS,tc.DecSign,tc.DecD,tc.DecM,tc.DecS,tg.Target_Name,ir.Surname,pc.Proposal_Code,b.Priority,b.PiRanking_Id,tc.EstripS,tc.EstripE,tc.WstripS,tc.WstripE,b.Moon_Id,b.MaxSeeing,b.ObsTime,b.Transparency_Id,b.NVisits,b.NDone,b.WaitDays,b.LastObserved,b.MaxLunarPhase,b.MinLunarAngularDistance from Proposal join ProposalContact as pcon using (Proposal_Id) join Investigator as ir on (pcon.Leader_Id=ir.Investigator_Id) join ProposalCode as pc using (ProposalCode_Id) join Block as b using (Proposal_Id) join Pointing using (Block_Id) join Observation using (Pointing_Id) join Target as tg using (Target_Id) join TargetCoordinates as tc using (TargetCoordinates_Id) WHERE Current=1 and ProposalStatus_Id=1 and OnHold=0 and b.NVisits != b.NDone"
-      
+
       NPRI = len(self.priorities)
       if(NPRI >= 1):
          qtxt += " and ("
@@ -122,7 +127,7 @@ class Queue(object):
             qtxt += "b.Priority=\'%d\'" % self.priorities[p]
             if(p != NPRI-1 and p+1 < NPRI):
                qtxt += " or "
-         qtxt += ")"      
+         qtxt += ")"
 
       qtxt += " and b.MaxSeeing >= \'%s\'" % self.smin
       qtxt += " and b.MaxSeeing <= \'%s\'" % self.smax
@@ -135,16 +140,18 @@ class Queue(object):
 		   qtxt+="and (b.Transparency_Id=\'4\' or b.Transparency_Id=\'1\')";
       if(self.transparency == "Thin"):
 		   qtxt+="and (b.Transparency_Id=\'5\' or b.Transparency_Id=\'1\')";
-         
+
       if(len(self.pcode) >= 1):
          qtxt+=" and (pc.Proposal_Code regexp\'%s\')" % self.pcode
          #qtxt+=" and (pc.Proposal_Code regexp\'%s\' or pc.Proposal_Code regexp\'MLT\')" % self.pcode
       if(len(self.pi) >= 1):
          qtxt+=" and ir.Surname=\'%s\'" % self.pi
       if(len(self.blockid) >= 1):
-         qtxt+=" and b.Block_Id=\'%s\'" % self.blockid 
+         qtxt+=" and b.Block_Id=\'%s\'" % self.blockid
+
 
       cur.execute(qtxt)
+
 
       #store what each index is in the data array
       #as the query is fixed, we just use numbers here
@@ -175,18 +182,19 @@ class Queue(object):
       WaitDays = 23
       #To revisit LastObs with pools...
       #this is a tricky param - should be recalculated as most recent of all LastObs entries in blocks for that same target....ugh!
-      LastObs = 24 
+      LastObs = 24
       MaxLunarPhase = 25
       MinLunarDist = 26
+      Score = 27
 
       #setup some parameters
       RA = []
       DEC = []
-      
+
       #our list of available blocks
 
       self.blist = []
-      
+
       #twilight times based on moon phase
       #5 min buffer for dark blocks
       #10 min buffer for grey
@@ -197,7 +205,7 @@ class Queue(object):
       tf5=self.dend+timedelta(minutes=5)
       tf10=self.dend+timedelta(minutes=10)
       tf15=self.dend+timedelta(minutes=15)
-      
+
       #if we start during the night at a different spot, make sure there's no buffer
       #the end of night twilight can still have a buffer, however, so we leave the tf values alone
       if(self.usealttime):
@@ -217,10 +225,10 @@ class Queue(object):
          tf10 = self.dend
          tf15 = self.dend
 
-      
+
       results = cur.fetchall()
       cur.close()
-
+      print 'LENGTH OF QUERY: ', len(results)
       #go through each row, representing a block
       #if it is visible/observable tonight, add it to our blist
       for data in results:
@@ -236,7 +244,7 @@ class Queue(object):
          #if there is more than one, we create a separate sub-block
          wstart = []
          wend = []
-         
+
          #print "E2=%s" % data[E2]
          if(str(data[E2]) == "None"):
             wstart.append(float(data[E1]))
@@ -252,8 +260,25 @@ class Queue(object):
             #Not very elegant, but it does the job...
             #TODO: Add NVisits, NDone, WaitDays, LastObs, POOLS
             #(and also add in user filters - min seeing, transparency, etc, as preferences/command line args?)
-            
-            b = SubBlock(ra_deg,dec_deg,int(data[BlockID]),wstart[w],wend[w],int(data[ObsTime]),str(data[PiName]),str(data[PropCode]),str(data[TargetName]),int(data[Priority]),float(data[MaxSeeing]),int(data[MoonID]),float(data[MaxLunarPhase]),int(data[Transparency]),float(data[MinLunarDist]),int(data[PiRank]),self.ignoretcmoon,int(data[NDone]),int(data[NVisits]))
+
+            b = SubBlock(ra_deg,dec_deg,
+                            int(data[BlockID]),
+                            wstart[w],wend[w],
+                            int(data[ObsTime]),
+                            str(data[PiName]),
+                            str(data[PropCode]),
+                            str(data[TargetName]),
+                            int(data[Priority]),
+                            float(data[MaxSeeing]),
+                            int(data[MoonID]),
+                            float(data[MaxLunarPhase]),
+                            int(data[Transparency]),
+                            float(data[MinLunarDist]),
+                            int(data[PiRank]),
+                            self.ignoretcmoon,
+                            int(data[NDone]),
+                            int(data[NVisits]),
+                            float(data[Score]))
             #b = SubBlock(ra_deg,dec_deg,int(data[BlockID]),wstart[w],wend[w],int(data[ObsTime]),str(data[PiName]),str(data[PropCode]),str(data[TargetName]),int(data[Priority]),float(data[MaxSeeing]),int(data[MoonID]),float(data[MaxLunarPhase]),int(data[Transparency]),float(data[MinLunarDist]),int(data[PiRank]),self.inputdate)
 
             #calculate stuff unrelated to time windows...
@@ -268,7 +293,7 @@ class Queue(object):
             elif(lmax >= 15):
                ti = ti10
                tf = tf10
-            
+
             self.ti = ti
             self.tf = tf
 
@@ -280,8 +305,8 @@ class Queue(object):
             #b.PrintBPW()
 
             #ADD POOL INFO
-            
-            # and b.IsSlitmaskLoaded() 
+
+            # and b.IsSlitmaskLoaded()
             #Hrm, HasBPW() should probably not be here...have to work on support for non-sidereal targets?
             if(b.TrackOverlaps(ti,tf) and b.IsTwilightOK() and b.IsMoonOK(self.minlunardist) and b.IsTimeCriticalOK()):# and (b.InstrumentInfo() in self.instruments)):
             #if(b.HasBPW() and b.TrackOverlaps(ti,tf) and b.IsTwilightOK() and b.IsMoonOK(self.minlunardist) and b.IsTimeCriticalOK() and (b.InstrumentInfo() in self.instruments)):
@@ -313,11 +338,11 @@ class Queue(object):
             #print overlappingblock[0].GetID()
 
          #for(j in range(0,noverlaps):
-            
+
 #Not currently used
    def CalculateOverlaps(self):
       #work out lists of blockids of blocks that overlap with each block (in the track windows)
-      #this forms a starting point for blocks to check whether the chosen pointing time+obstime (which changes) overlaps with other blocks, on the fly, when the optimisation is taking place 
+      #this forms a starting point for blocks to check whether the chosen pointing time+obstime (which changes) overlaps with other blocks, on the fly, when the optimisation is taking place
       plist = self.blist
       NP = len(plist)
       for i in range(0,NP):
@@ -387,7 +412,7 @@ class Queue(object):
             delta = self.dstart-plist[0].GetChosenStart()
             print "<td>-%d</td>" % delta.seconds
             gap_total -= delta.seconds
-      else: 
+      else:
          print "<td>-</td>"
       print "<td>-</td>"
       print "<td>-</td>"
@@ -441,10 +466,10 @@ class Queue(object):
                gap_total -= delta.seconds
          if(plist[p].HasBPW()):
             bpw = plist[p].GetBPW()
-            print "<td align=center>%s</td>" % bpw[0].strftime("%H:%M") 
-            print "<td align=center>%s</td>" % bpw[1].strftime("%H:%M") 
+            print "<td align=center>%s</td>" % bpw[0].strftime("%H:%M")
+            print "<td align=center>%s</td>" % bpw[1].strftime("%H:%M")
          else:
-            print "<td align=center>-</td>" 
+            print "<td align=center>-</td>"
             print "<td align=center>-</td>"
 
          mtype = plist[p].GetMoonType()
@@ -484,8 +509,8 @@ class Queue(object):
       print "<td>-</td>"
       print "<td>-</td>"
       print "</tr>"
-      
-      #Count gaps 
+
+      #Count gaps
       print "<tr>"
       print "<td>-</td>"
       print "<td>-</td>"
@@ -504,13 +529,13 @@ class Queue(object):
       print "<td>-</td>"
       print "<td>-</td>"
       print "</tr>"
-            
+
       print "</table>"
 
    def IsInsertable(self,block):
       #if each block had a blist that was a subset of self.blist which it potentially overlapped
       #it could be passed here instead of self.blist to speed things up (SUBSTANTIALLY speed things up)
-      plist = filter(lambda x: x.IsActive(),self.blist) 
+      plist = filter(lambda x: x.IsActive(),self.blist)
       NP = len(plist)
       #covered by return 1 at end of function
       #if(NP == 0):
@@ -528,7 +553,7 @@ class Queue(object):
          E+=j.Energy()
       return E
 #Part of the implementation for weighted interval scheduling method
-#may need to be revised 
+#may need to be revised
    def ComputePrevIntervals(self,I):
       start = []
       finish = []
@@ -542,7 +567,7 @@ class Queue(object):
          p.append(i)
       return p
 #Part of the implementation for weighted interval scheduling method
-#may need to be revised 
+#may need to be revised
    def ScheduleWeightedIntervalsByPriority(self,pri):
       self.DeactivateBlocks()
       plist = filter(lambda x: x.GetPri() == pri,self.blist)
@@ -550,7 +575,7 @@ class Queue(object):
       #plist = sorted(filter(lambda x: x.IsActive(),self.blist),key=lambda y: y.GetChosenEnd())
       #I.sort(lambda x: x.GetChosenEnd())#y: x.GetChosenStart() - y.GetChosenEnd())
       #I.sort(lambda x,y: x.GetChosenStart() - y.GetChosenEnd())
-   
+
       p = self.ComputePrevIntervals(I)
 
       #OPT...
@@ -575,14 +600,14 @@ class Queue(object):
          block.SetActive(1)
 
 #Part of the implementation for weighted interval scheduling method
-#may need to be revised 
+#may need to be revised
    def ScheduleWeightedIntervals(self):
       self.DeactivateBlocks()
       I = sorted(self.blist,key=lambda x: x.GetChosenEnd())
       #plist = sorted(filter(lambda x: x.IsActive(),self.blist),key=lambda y: y.GetChosenEnd())
       #I.sort(lambda x: x.GetChosenEnd())#y: x.GetChosenStart() - y.GetChosenEnd())
       #I.sort(lambda x,y: x.GetChosenStart() - y.GetChosenEnd())
-   
+
       p = self.ComputePrevIntervals(I)
 
       #OPT...
@@ -607,13 +632,13 @@ class Queue(object):
          block.SetActive(1)
 
    def MimicSA(self):
-      #An interesting twist on this function would be to use 
+      #An interesting twist on this function would be to use
       #sorted(plist, key=lambda x: x.GetObsTime())
-      #and always choose the shortest blocks first 
+      #and always choose the shortest blocks first
       #(though this might have implications later in the semester with large gaps, making it difficult to fill gaps
       #since all the smaller blocks are finished)
 
-      #N.B. An important thing to recognise with this algorithm is that 
+      #N.B. An important thing to recognise with this algorithm is that
       #the knock-on effects of choosing an early block that may later
       #bump into a high priority block are quite pronounced compared to the
       #RandomiseBlocks approach
@@ -624,6 +649,7 @@ class Queue(object):
       scores = { }
       plist = self.blist
       NP = len(plist)
+      print 'Priority list: ', NP
       for i in range(0,NP):
          if(not scores.has_key(plist[i].GetPri())):
             scores[plist[i].GetPri()] = plist[i].GetPri()
@@ -639,13 +665,13 @@ class Queue(object):
 
       #loop has to be driven by time - if we find no blocks available in our overlap region,
       #then increment time by 5 min (?) and try again through all priorities
-      clock = self.dstart 
+      clock = self.dstart
       while (clock < self.dend):
          #go through each priority level, starting with the highest one (P0)
          gotone = 0
          for s in range(0,NS):
             if(gotone == 0):
-               plist = filter(lambda x: x.GetPri() == scorelist[s] and x.IsActive() == 0,self.blist)
+               plist = filter(lambda x: x.GetPri() == scorelist[s] and x.IsActive() == 0, self.blist)
                NP = len(plist)
                   #choose a random index to start with
                if(NP>1):
@@ -748,7 +774,7 @@ class Queue(object):
                            plist[idx2].Randomise()
                            #print "(iii) idx2 randomised"
                      #Try and randomise the block if it is already active
-                     else: 
+                     else:
                         oldstart = plist[idx2].GetChosenStart()
                         plist[idx2].SetActive(0)
                         plist[idx2].Randomise()
@@ -787,7 +813,7 @@ class Queue(object):
                plist[i].SetActive(1)
             #if(WasActive and self.IsInsertable(plist[i])):
             #   plist[i].SetActive(1)
-            
+
    def CountActiveObsTimeByInstrument(self,inst):
       plist = filter(lambda x: x.IsActive() == 1 and x.InstrumentInfo() == inst,self.blist)
       NP = len(plist)
@@ -867,7 +893,7 @@ class Queue(object):
       idle = self.total_duration-(sums[0]+sums[1]+sums[2]+sums[3]+sums[4])
 
       qtxt = "insert into NightTracker (Night,Seeing,dstart,dend,P0,P1,P2,P3,P4,idle,duration,Weather,WeatherSeeing,WeatherCloud,WeatherHumidity,Eng,Tech) VALUES (\'%s\',%.2f,\'%s\',\'%s\',%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f)" % (dstr,self.smin,self.dstart.strftime("%Y-%m-%d %H:%M:%S"),self.dend.strftime("%Y-%m-%d %H:%M:%S"),sums[0],sums[1],sums[2],sums[3],sums[4],idle,self.total_duration,Weather,WeatherSeeing,WeatherCloud,WeatherHumidity,Eng,Tech)
-      print qtxt
+#      print qtxt
       cur.execute(qtxt)
       cur.close()
       con.commit()
@@ -880,7 +906,7 @@ class Queue(object):
          (b1,b2) = j.GetChosenTimes()
          err = 0 #zero = accepted for now...(this is where we can reject blocks etc based weather, eng, etc, specified by different values)
          qtxt = "insert into BlockTracker (Block_Id,bstart,bend,err,Priority,ObsTime) VALUES (%d,\'%s\',\'%s\',%d,%d,%d)" % (j.GetID(),b1.strftime("%Y-%m-%d %H:%M:%S"),b2.strftime("%Y-%m-%d %H:%M:%S"),err,j.GetPri(),j.GetObsTime())
-         print qtxt
+#         print qtxt
          cur.execute(qtxt)
       cur.close()
       con.commit()
@@ -890,7 +916,7 @@ class Queue(object):
       cur = con.cursor()
       for j in filter(lambda x: x.IsActive() == 1,self.blist):
          qtxt = "update Block set NDone=\'%d\' where Block_Id=\'%d\'" % (j.GetNDone()+1,j.GetID())
-         print qtxt
+#         print qtxt
          cur.execute(qtxt)
       cur.close()
       con.commit()
@@ -912,7 +938,7 @@ class Queue(object):
 #           ax2.plot([d2,d2],yrange,'b-',lw=2.0)
 #           ax3.plot([d1,d1],yrange,'b-',lw=2.0)
 #           ax3.plot([d2,d2],yrange,'b-',lw=2.0)
-#           
+#
 #           (t1,t2) = j.GetTimeWindows()
 #           ax1.plot([t1,t1],yrange,'g--',lw=2.0)
 #           ax1.plot([t2,t2],yrange,'g--',lw=2.0)
@@ -921,7 +947,7 @@ class Queue(object):
 #           ax3.plot([t1,t1],yrange,'g--',lw=2.0)
 #           ax3.plot([t2,t2],yrange,'g--',lw=2.0)
 
-      
+
 #This is quite important...
    def DateTimeSetup(self,inputdate):
       #When this is called, the twilight times are already loaded by RetrieveNightInfo into self.dstart, self.dend
@@ -950,7 +976,7 @@ class Queue(object):
          res = rmod.search(self.alttime)
          hours = res.group()
          hours = int(hours.replace(':',''))
-         
+
          rmod = re.compile(':\d+')
          res = rmod.search(self.alttime)
          mins = res.group()
@@ -958,7 +984,7 @@ class Queue(object):
 
          if(hours < 10):
             hours += 24
-         #how many hours in self.dstart? 
+         #how many hours in self.dstart?
          new_time = hours*1.0 + mins*1.0/60
          old_time = self.dstart.hour*1.0+self.dstart.minute*1.0/60+self.dstart.second*1.0/3600
          delta_time = new_time-old_time
@@ -971,7 +997,7 @@ class Queue(object):
          res = rmod.search(self.altendtime)
          hours = res.group()
          hours = int(hours.replace(':',''))
-         
+
          rmod = re.compile(':\d+')
          res = rmod.search(self.altendtime)
          mins = res.group()
@@ -979,7 +1005,7 @@ class Queue(object):
 
          if(hours > 10):
             hours -= 24
-         #how many hours in self.dend? 
+         #how many hours in self.dend?
          new_time = hours*1.0 + mins*1.0/60
          old_time = self.dend.hour*1.0+self.dend.minute*1.0/60+self.dend.second*1.0/3600
          delta_time = new_time-old_time
@@ -1015,7 +1041,7 @@ class Queue(object):
       self.PMS=md.date2num(self.pmset)
       self.NMR=md.date2num(self.nmrise)
       self.NMS=md.date2num(self.nmset)
-      
+
       #work out what times to use for moon range for the night
       #Complex....
       self.CalcMoonRange()
@@ -1025,7 +1051,7 @@ class Queue(object):
    def GetMoonRange(self):
       return (self.moonstart,self.moonend,self.mduration)
    def CalcMoonRange(self):
-      #This function is very messy!   
+      #This function is very messy!
       #buffer either side of twilight to consider for moon range...
       dtwi=timedelta(minutes=30)
       self.moonstart='NULL'

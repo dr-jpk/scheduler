@@ -10,7 +10,12 @@ import re
 #Class definition
 class SubBlock:
    #Constructor
-   def __init__(self,ra,dec,blockid,WindowStart,WindowEnd,obstime,piname,propcode,targetname,priority,maxseeing,moonid,maxlunar,transparency,minlunardist,pirank,ignoretcmoon,ndone,nvisits):
+   def __init__(self, ra, dec, blockid, WindowStart, WindowEnd, obstime, piname,
+                propcode, targetname, priority, maxseeing, moonid, maxlunar,
+                transparency, minlunardist, pirank, ignoretcmoon, ndone,
+                nvisits, score):
+
+      self.score = score
       self.ra = ra
       self.dec = dec
       self.blockid = blockid
@@ -18,13 +23,13 @@ class SubBlock:
       self.url = "https://www.salt.ac.za/wm/block/%d" % (self.blockid)
       #These values for track windows are stored in LST (as in DB)
       #self.dW1 and self.dW2 calculated later are in SAST and calculated post-constructor by CalcTrackTimes() - see below
-      #The WindowStart and WindowEnd values are determined in the Queue class based on whether 
+      #The WindowStart and WindowEnd values are determined in the Queue class based on whether
       #it's a continuous visibility window (e.g. Magellanic) or both east and west tracks (e.g. Galactic Bulge)
       self.W1 = WindowStart
       self.W2 = WindowEnd
-      #using int() here to get around some weird bug: 
+      #using int() here to get around some weird bug:
       #TypeError: unsupported type for timedelta seconds component: numpy.int16
-      self.obstime = int(obstime) 
+      self.obstime = int(obstime)
 
       #set to RSS as default instrument
       self.inst = "RSS"
@@ -34,41 +39,41 @@ class SubBlock:
       #assume block is not time critical by default
       self.istimecritical = 0
       self.timewindowactive = 0
-      #acqtime is not currently used in the code, but it may be used to fine tune things more in the future 
+      #acqtime is not currently used in the code, but it may be used to fine tune things more in the future
       self.acqtime = 600
       #self.offset holds the randomly generated offset from the nominal start time of the block
       self.offset = 0
       #Assume OK to start with. Easier to prove not feasible by setting this to False than the other way around
       self.MoonOK = True
-      self.TwilightOK = True 
-      #not currently used, but may be used in future to pre-calculate and keep track of overlapping blocks 
+      self.TwilightOK = True
+      #not currently used, but may be used in future to pre-calculate and keep track of overlapping blocks
       self.noverlaps = 0
       self.overlaps = []
 
       #Ignore the moon if the block is time critical
       self.ignoretcmoon = ignoretcmoon
 
-      #These are used in working out the time windows 
+      #These are used in working out the time windows
       self.time1 = 0
       self.time2 = 0
-      
+
       #Keeps track of whether the block is active in the queue
       self.isactive = 0
-      #Is the block a target of opportunity (ToO) 
+      #Is the block a target of opportunity (ToO)
       self.istoo =0
       #Store visit information. This is simple at the moment but will need to be expanded later
       self.nvisits = nvisits
       self.ndone = ndone
       self.waitdays = 0
       #self.lastobs...
- 
+
       #A flag to keep track of whether block point window information is available
       #Non-sidereal blocks will not have block point windows
       #This is to avoid them crashing the whole scheduler page
       self.bpw = 0
 
       #Block specific information
-      
+
       #PI Name
       self.piname = piname
       #Proposal Code
@@ -93,7 +98,7 @@ class SubBlock:
          self.transparency = "Thin"
 
       #Priority-based colour scheme
-      self.colour = 'cyan' #P4 
+      self.colour = 'cyan' #P4
       if(self.priority == 0):
          self.colour='black'
       elif (self.priority == 1):
@@ -112,7 +117,7 @@ class SubBlock:
       if(minlunardist == 0.0):
          self.minlunardist = 30.0
 
-      #Define moon lunar illum and color 
+      #Define moon lunar illum and color
       #Note the checks for 0.0 are because lunar values are still not uniformly populated in the database by PIPT.
       self.minlunar = 0.0
       self.maxlunar = 100.0
@@ -149,7 +154,7 @@ class SubBlock:
       return self.mooncolour
    def GetTransparency(self):
       return self.transparency
-   def GetPri(self):   
+   def GetPri(self):
       return self.priority
    def GetPI(self):
       return self.piname
@@ -182,7 +187,7 @@ class SubBlock:
    def SetDefaultStart(self):
       self.offset = 0
       self.b1=self.dW1
-      self.b2=self.b1+timedelta(seconds=self.obstime) 
+      self.b2=self.b1+timedelta(seconds=self.obstime)
    def Randomise(self):
       #print "Randomise"
       #Shuffle starting time of a block (within the track window)
@@ -198,11 +203,11 @@ class SubBlock:
       self.offset = int(np.random.random_sample()*self.DurationSeconds)
       #print "offset = %d, duration %s" % (self.offset,self.DurationSeconds)
       self.b1=self.dW1+timedelta(seconds=self.offset)
-      self.b2=self.b1+timedelta(seconds=self.obstime) 
+      self.b2=self.b1+timedelta(seconds=self.obstime)
       return 1
    def IsActive(self):
       return self.isactive
-   #Should be expanded to support instrument mode descriptors separate to instrument 
+   #Should be expanded to support instrument mode descriptors separate to instrument
    def InstrumentInfo(self):
       return self.inst
    #Query science database to find out what instrument a block is...it really is too complex to find out what instrument a block uses in the database. Simplifying this could reduce the load time substantially...
@@ -260,7 +265,7 @@ class SubBlock:
             self.inst = "HRS"
          if(BVIT):
             self.inst = "BVIT"
-         
+
          #print "%s self.blockid = %s, self.inst = %s, IsMOS=%s, MosMaskLoaded=%s" % (propcode,self.blockid,self.inst,self.IsMOS,self.MosMaskLoaded)
       if(self.IsMOS):
          self.acqtime = 900
@@ -275,7 +280,7 @@ class SubBlock:
 #| Imaging | NULL    | P001140N04 |
 #| Imaging | NULL    | NULL       |
 #+---------+---------+------------+
-   
+
    def RetrieveTimeWindows(self,con):
       #CRITICAL ASSUMPTION/FLAW: assumes only one time-critical window is available per sub-block
       # This may fall apart in long equatorial tracks that could potentially have two time-critical zones
@@ -311,7 +316,7 @@ class SubBlock:
                #print "(orig)Min/Max: %s/%s Time window: %s %s\n" % (blockstart,blockend,t1,t2)
                self.timewindowactive=1
                if(t1-self.MinStartTime >= timedelta(seconds=0)):
-                  self.MinStartTime = t1 
+                  self.MinStartTime = t1
                if(self.MaxEndTime-t2 >= timedelta(seconds=0)):
                   self.MaxEndTime = t2
                #print "before: %s %s after: %s %s\n" % (blockstart,blockend,self.MinStartTime,self.MaxEndTime)
@@ -319,7 +324,7 @@ class SubBlock:
                #very important
                if(self.MinStartTime-self.b1 >= timedelta(seconds=0)):
                   self.b1=self.MinStartTime
-                  self.b2=self.b1+timedelta(seconds=self.obstime) 
+                  self.b2=self.b1+timedelta(seconds=self.obstime)
                #and update the latest point times for Randomise()
                   self.LatestPointTime=self.MaxEndTime-timedelta(seconds=self.obstime)
                   self.LatestPointDuration=md.date2num(self.LatestPointTime)-md.date2num(self.MinStartTime)
@@ -350,7 +355,7 @@ class SubBlock:
       return self.noverlaps
    def TWOverlaps(self):
       return self.overlaps
-   #This is more for debugging 
+   #This is more for debugging
    def GetTimeWindows(self):
       return (self.time1,self.time2)
    def Energy(self):
@@ -375,7 +380,7 @@ class SubBlock:
          exp = exp + 1.0
       self.energy = math.pow(base,exp)
 
-   def GetPropCode(self):   
+   def GetPropCode(self):
       return self.propcode
    def GetMoonMinMax(self):
       return (self.minlunar,self.maxlunar)
@@ -408,12 +413,12 @@ class SubBlock:
    def GetColour(self):
       return self.colour
    #return url to access in WM
-   def GetWMURL(self):   
+   def GetWMURL(self):
       return self.url
-   #The track LST times are fixed in science database, so we need to convert them to SAST 
+   #The track LST times are fixed in science database, so we need to convert them to SAST
    #The E1,E2,W1,W2 times are in LST (const)
    def CalcTrackTimes(self,LST_MIN_SAST,inputdate,con,illum,mstart,mend,ti,tf):
-      #let's get the BlockPointWindows first - essentially these allow us to set harder limits on when it's safe to point to an object, 
+      #let's get the BlockPointWindows first - essentially these allow us to set harder limits on when it's safe to point to an object,
       #Dates are in format YY/MM/DD
       #e.g. 2014/11/08
       #convert W1, W2 (in decimal LST) to dW1, dW2 in datetime format
@@ -446,7 +451,7 @@ class SubBlock:
       cur.execute(qtxt)
       results = cur.fetchall()
       nrows = cur.rowcount
-      self.bpw1 = None 
+      self.bpw1 = None
       self.bpw2 = None
       if(nrows > 0):
          self.bpw = 1
@@ -457,7 +462,7 @@ class SubBlock:
             pstart = datetime.strptime(d1,"%Y/%m/%d %H:%M:%S")
             if(time1 < 12):
                pstart += timedelta(hours=24)
-            
+
             time2 = self.wrap(float(data[1])-LST_MIN_SAST)
             (th,tm,ts) = self.deg2hms(time2)
             d2 = inputdate + " %d:%d:%d" % (th,tm,ts)
@@ -466,7 +471,7 @@ class SubBlock:
                pend += timedelta(hours=24)
 
            #So, the BPW cannot be extended outside the BPW
-           #i.e. any changes based on twilight times, can only be trimmed within the valid BPW (provided the obstime can still be observed) 
+           #i.e. any changes based on twilight times, can only be trimmed within the valid BPW (provided the obstime can still be observed)
            #therefore we don't have to explicity check that obstime is still available, we're still in a valid block point window
             if(max(pstart,self.dW1) <= min(pend,self.dW2)):
                self.dW1 = max(pstart,self.dW1)
@@ -474,7 +479,7 @@ class SubBlock:
                break
 
       cur.close()
-      
+
       #T I M E   C R I T I C A L
 
       cur = con.cursor()
@@ -526,7 +531,7 @@ class SubBlock:
 
                break
       cur.close()
- 
+
 
 
 
@@ -538,7 +543,7 @@ class SubBlock:
 
       #TODO LIST
       #May also want to disable moon check for all blocks (then have filters for illum fraction range to consider)
-      
+
       #How to add option of considering grey blocks in dark time?
       #How to add option of considering bright blocks in dark time?
       #=>These can be solved using weights in objective function ? (but they have to be allowed in first)
@@ -546,7 +551,7 @@ class SubBlock:
       #not meant to be observed outside their normal time and keep the normal blocks' weighting unchanged.
       #Note the test for dark time (< 15.0) is strict.
       #If it were <= 15.0, it lets in grey time blocks...
-      
+
       #N.B. We have to check there's still enough obstime left,
       #because the block point windows don't know about the moon!
 
@@ -627,7 +632,7 @@ class SubBlock:
                   self.MoonOK = False
                   #no need to modify dW1...dW2
             else: # moon covers entire block
-               self.MoonOK = (float(self.minlunar) <= float(illum) <= float(self.maxlunar)) 
+               self.MoonOK = (float(self.minlunar) <= float(illum) <= float(self.maxlunar))
          #if the block is in the dark part of a night when the moon is up
          else:
             self.MoonOK = (float(self.minlunar) <  15.0)
@@ -637,7 +642,7 @@ class SubBlock:
       self.dW1=max(ti,self.dW1)
       #Essentially a maximum end time...
       self.dW2=min(tf,self.dW2)
-      
+
       #N I G H T    B O U N D A R I E S
 
       #block overlaps with morning twilight - needs careful treatment
@@ -651,10 +656,10 @@ class SubBlock:
             self.TwilightOK = False
 
       self.b1=self.dW1
-      self.b2=self.b1+timedelta(seconds=self.obstime) 
+      self.b2=self.b1+timedelta(seconds=self.obstime)
       self.ActualDuration = md.date2num(self.b2)-md.date2num(self.b1)
       self.Duration = md.date2num(self.dW2)-md.date2num(self.dW1)
-      self.DurationSeconds = (self.dW2-self.dW1).total_seconds() 
+      self.DurationSeconds = (self.dW2-self.dW1).total_seconds()
 
    def GetChosenTimes(self):
       return (self.b1,self.b2)
@@ -684,7 +689,7 @@ class SubBlock:
       return self.b2
    def SetChosenStart(self,start):
       self.b1=start
-      self.b2=self.b1+timedelta(seconds=self.obstime) 
+      self.b2=self.b1+timedelta(seconds=self.obstime)
    def GetWindowDuration(self):
       return self.WindowDuration
 
@@ -703,7 +708,7 @@ class SubBlock:
                Rectangle((self.b1,(4.0-self.priority)+0.85),self.ActualDuration,-(0.15*1.0),color='magenta',lw=1,alpha=1.0,ec='black',url=self.url,picker=True)
                )
 
-      return rlist 
+      return rlist
 #this is old debugging stuff / other options, useful to leave it here...
  # (
  #          Rectangle((self.dO1,(4.0-self.priority)),self.DurationO,1.0,color='magenta',lw=2,alpha=0.1,url=self.url,picker=True),
@@ -734,7 +739,7 @@ class SubBlock:
 
  #       #original version
          #return (Rectangle((self.dW1,(4.0-self.priority)),self.WindowDuration,1.0,color=self.colour,lw=2,alpha=0.2,url=self.url,picker=True),Rectangle((self.dCW1,(4.0-self.priority)),self.ActualDuration,1.0,color=self.colour,lw=2,alpha=0.5,url=self.url,picker=True),Rectangle((self.dCW1,(4.0-self.priority)+1.0),self.ActualDuration,-(0.15*1.0),color=self.mooncolour,lw=1,alpha=1.0,ec='black',url=self.url,picker=True))
-#     
+#
 #     else:
 #        if(self.istimecritical):
 #           return (Rectangle((self.b1,(4.0-self.priority)),self.ActualDuration,1.0,color=self.colour,lw=2,alpha=0.5,url=self.url,picker=True),

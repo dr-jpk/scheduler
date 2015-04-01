@@ -1,5 +1,5 @@
-#!/opt/local/bin/python2.7
-#
+#!/usr/bin/python
+
 import MySQLdb
 
 import re,glob,os,sys
@@ -11,7 +11,7 @@ from Queue import *
 import numpy as np
 import random
 
-#import webbrowser 
+#import webbrowser
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 #import matplotlib.animation as animation
@@ -103,7 +103,7 @@ if(cgi_bvit):
 #Block_Id int(10) unsigned,
 #bstart datetime,
 #bend datetime,
-#err int(10) unsigned, 
+#err int(10) unsigned,
 #Priority int(10) unsigned,
 #ObsTime int(10) unsigned
 #);
@@ -111,7 +111,7 @@ if(cgi_bvit):
 
 #NightTracker
 #CREATE TABLE NightTracker(
-#Night datetime, 
+#Night datetime,
 #Seeing float unsigned,
 #dstart datetime,
 #dend datetime,
@@ -130,10 +130,10 @@ if(cgi_bvit):
 
 #update Block set NDone=0;
 
-sqluser = 'brent'
+sqluser = 'dummy'
 sqldb = 'sdb_brent'
 sqlhost = 'devsdb'
-sqlpasswd='yourpasswordhere'
+sqlpasswd='dummy'
 
 #Clear out the old observations
 #May need to do reset other quantities here (to check with Encarni)
@@ -144,9 +144,9 @@ cur.execute(qtxt)
 qtxt = "update Block set OnHold=0"
 cur.execute(qtxt)
 #remove all rows in the BlockTracker table
-qtxt = "delete from BlockTracker" 
+qtxt = "delete from BlockTracker"
 cur.execute(qtxt)
-qtxt = "delete from NightTracker" 
+qtxt = "delete from NightTracker"
 cur.execute(qtxt)
 cur.close()
 con.commit()
@@ -156,7 +156,8 @@ con.close()
 debug = 1
 
 startdate = "2014/11/01"
-enddate = "2015/04/30"
+enddate = "2014/11/07"
+#enddate = "2015/04/30"
 #startdate.replace('/','-')
 d1 = ephem.localtime(ephem.date(startdate+' 15:00:00'))
 Ndays = 7
@@ -173,12 +174,32 @@ while (day <= d2):
    #pick a random seeing
    cgi_smin = np.random.uniform(1.5,3.0)
    cgi_date = day.strftime("%Y/%m/%d")
+   query_date = day.strftime("%Y-%m-%d")
    #a fixed seeing seems a bit too restrictive for now
    cgi_smin = 0
 
    print "Day: %s Seeing: %.2f" % (cgi_date,cgi_smin)
    seeing_range = [cgi_smin,cgi_smax]
-   q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,sqlhost,sqldb,debug)
+   q = Queue(cgi_date,
+             query_date,
+             priority_list,
+             seeing_range,
+             cgi_usealttime,
+             cgi_alttime,
+             cgi_usealtendtime,
+             cgi_altendtime,
+             instrument_list,
+             cgi_tran,
+             cgi_notcmoon,
+             cgi_propcode,
+             cgi_piname,
+             cgi_blockid,
+             cgi_moondist,
+             sqlhost,
+             sqldb,
+             debug)
+
+
    (dstart,dend) = q.GetTwilightTimes()
    total_duration = q.GetDuration()
    duration_str="%.2f h" % (total_duration)
@@ -199,6 +220,8 @@ while (day <= d2):
    t1=t2
    t3=dend+dtwi
    x3=[t1,t3]
+
+   print t1, t2, x1, x2
 
    yrange=[ymin,ymax]
    yoffset=0.05*ymax
@@ -231,7 +254,7 @@ while (day <= d2):
    #ax1.major_ticks.set_ticksize(10)
    #f.figsize=fsize
 
-   moonstr = ' [%d per cent]' % (q.GetMoonIllum()) 
+   moonstr = ' [%d per cent]' % (q.GetMoonIllum())
    ax1.set_title(dstart.strftime("%d %b %Y")+"\n"+duration_str+moonstr)#,weight='bold',va='top')
 
    #format the axes properly
@@ -277,10 +300,10 @@ while (day <= d2):
       ax1.add_patch(Rectangle((mstart,yrange[0]),mduration,yrange[1]*1.5,color='yellow',picker=False,alpha=moon_alpha))
       ax2.add_patch(Rectangle((mstart,yrange[0]),mduration,yrange[1]*1.5,color='yellow',picker=False,alpha=moon_alpha))
       ax3.add_patch(Rectangle((mstart,yrange[0]),mduration,yrange[1]*1.5,color='yellow',picker=False,alpha=moon_alpha))
-   
-   #The following would do the schedule for each night 
-   #by optimising the blocks via randomisation and progressively 
-   #allocating the highest priorities first 
+
+   #The following would do the schedule for each night
+   #by optimising the blocks via randomisation and progressively
+   #allocating the highest priorities first
 
 #  cgi_niter = 20
 
@@ -297,7 +320,7 @@ while (day <= d2):
    #Results are not as good as RandomiseBlocks approach
    q.MimicSA()
 
-   #display the queue 
+   #display the queue
    q.DisplayActiveBlocks(ax1,ax2,ax3,yrange)
    #Record the queue as observed in the database
    q.MarkActiveAsObserved()

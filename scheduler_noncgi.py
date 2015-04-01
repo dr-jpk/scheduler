@@ -1,5 +1,4 @@
-#!/opt/local/bin/python2.7
-#
+#!/usr/bin/python
 # Usage: ./scheduler_noncgi.py 2015/03/09
 # where date is in format YYYY/MM/DD
 import MySQLdb
@@ -13,7 +12,7 @@ from Queue import *
 import numpy as np
 import random
 
-#import webbrowser 
+#import webbrowser
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 #import matplotlib.animation as animation
@@ -104,7 +103,26 @@ sqlhost= "sdb.saao"
 sqldb = "sdb"
 debug = 1
 
-q = Queue(cgi_date,priority_list,seeing_range,cgi_usealttime,cgi_alttime,cgi_usealtendtime,cgi_altendtime,instrument_list,cgi_tran,cgi_notcmoon,cgi_propcode,cgi_piname,cgi_blockid,cgi_moondist,sqlhost,sqldb,debug)
+q = Queue(cgi_date,
+          cgi_date,
+          priority_list,
+          seeing_range,
+          cgi_usealttime,
+          cgi_alttime,
+          cgi_usealtendtime,
+          cgi_altendtime,
+          instrument_list,
+          cgi_tran,
+          cgi_notcmoon,
+          cgi_propcode,
+          cgi_piname,
+          cgi_blockid,
+          cgi_moondist,
+          sqlhost,
+          sqldb,
+          debug)
+
+
 (dstart,dend) = q.GetTwilightTimes()
 total_duration = q.GetDuration()
 duration_str="%.2f h" % (total_duration)
@@ -158,7 +176,7 @@ ax3.tick_params(which='minor',length=5)
 #ax1.major_ticks.set_ticksize(10)
 #f.figsize=fsize
 
-moonstr = ' [%d per cent]' % (q.GetMoonIllum()) 
+moonstr = ' [%d per cent]' % (q.GetMoonIllum())
 ax1.set_title(dstart.strftime("%d %b %Y")+"\n"+duration_str+moonstr)#,weight='bold',va='top')
 
 #format the axes properly
